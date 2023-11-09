@@ -4,9 +4,12 @@ Created on Thu Oct 26 16:35:34 2023
 
 @author: shangfr
 """
+import os
 import streamlit as st
-from dotenv import load_dotenv
-load_dotenv()
+
+os.environ["QIANFAN_AK"] = st.secrets["QIANFAN_AK"]
+os.environ["QIANFAN_SK"] = st.secrets["QIANFAN_SK"]
+
 st.set_page_config(page_title="Agent Bot", page_icon="🤖")
 st.title("🤖 MRKL Agent Bot Research")
 st.caption(

@@ -56,7 +56,7 @@ Prompt 技巧是一种通过为模型提供更加具体和准确的上下文信�
 ### Usage 
 ####  Installation and requirements
 
-1. 申请[千帆大模型API](https://cloud.baidu.com/product/wenxinworkshop?track=pinzhuanqianfan) 在demo.env里添加环境变量后，重命名demo.env 为 .env
+1. 申请[千帆大模型API](https://cloud.baidu.com/product/wenxinworkshop?track=pinzhuanqianfan) 在.streamlit/secrets.toml里添加环境变量。
 2. `pip install -r requirements.txt`
 3. `streamlit run app.py`
 
