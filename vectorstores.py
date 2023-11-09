@@ -20,7 +20,7 @@ from langchain.prompts import PromptTemplate
 llm = QianfanLLMEndpoint()
 
 
-def doc_splits(file, chunk_size=1000, collection_name="test"):
+def doc_splits(file, chunk_size=1000):
     # Read documents
     temp_dir = tempfile.TemporaryDirectory()
 
@@ -71,7 +71,7 @@ def vectordb(file=None, splits=None, chunk_size=1000, collection_name="test"):
 def qa_retrieval(k=1, rsd=True, prompt_template="", db=None, collection_name="test"):
 
     if not prompt_template:
-        prompt_template = """使用以下内容用中文回答最后的问题。如果你不知道答案，就说你不知道，不要试图编造答案。
+        prompt_template = """将问题分解成若干个简单问题，参考以下内容然后逐个回答。确保答案正确，不要太啰嗦。
         
         {context}
         

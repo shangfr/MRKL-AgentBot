@@ -28,13 +28,13 @@ def qa_agent(question):
     with st.chat_message("assistant"):
         st_callback = StreamlitCallbackHandler(st.container())
         answer = st.session_state.agent.run(question, callbacks=[st_callback])
-        st.write(answer)
+        #st.write(answer)
     return answer
 
 
 def chat_research():
     if content := st.chat_input(placeholder="请提问"):
-        response = qa_agent(content)
+        _ = qa_agent(content)
 
 
 def generate_research():
@@ -184,5 +184,5 @@ else:
 
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
-
-
+        
+        

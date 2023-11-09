@@ -13,7 +13,6 @@ st.caption(
     "🦜🔗 LangChain is a framework for developing applications powered by language models.")
 
 ## styles ##
-padding = 100
 st.markdown(""" <style>
             #MainMenu {
                 visibility: hidden;

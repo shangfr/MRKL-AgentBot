@@ -23,29 +23,27 @@ with st.sidebar:
             "",
             "绿色企业的标准可以分为三个层次：基础标准、核心标准和高度标准。\n\n1. 基础标准：主要关注企业的环境合规性，包括企业的环境管理体系、环境法律法规的遵守情况、环境信息公开情况等。\n\n2. 核心标准：主要关注企业的绿色产品、绿色技术和绿色生产过程，包括企业的产品是否符合环保标准、技术是否具有节能减排特点、生产过程是否采用环保技术和清洁生产方式等。\n\n3. 高度标准：主要关注企业的绿色管理、绿色文化和社会责任，包括企业的环境战略、环保宣传和教育、员工的环保意识和参与度、企业的社会责任报告等。\n\n判断一家绿色企业通常会从上述方面进行综合评估，并结合企业的具体情况进行分析。",
             height=100)
-    
+
     with st.expander("评分设置"):
         score_st = st.text_area(
             "",
             '''按照三个层次标准，可以分别对企业在各项标准上的表现进行评分，最后进行综合评分。每项标准在1~100分之间评分。
             绿色企业评分 = 基础标准 + 核心标准 + 高度标准
             ''',
-            height=100,help="总长度不能超过1000 token")
-        
+            height=100, help="总长度不能超过1000 token")
+
     on = st.toggle('自动执行')
-    
-template = f"{role_st}\n\n{reference_st}\n\n{score_st}"
+
+template = f"{role_st}\n\n{reference_st}\n\n{score_st}\n\n回答问题时，将问题分解成若干个简单问题，然后逐个回答。确保答案正确，不要太啰嗦。"
 msgs = StreamlitChatMessageHistory()
-conversation = llm_chain(template,msgs)
+conversation = llm_chain(template, msgs)
 
 
 if len(msgs.messages) == 0 or st.sidebar.button("清空聊天记录", use_container_width=True):
     msgs.clear()
-    msgs.add_ai_message("我会根据以上标准帮你对企业进行评价。")
 
 for msg in msgs.messages:
     st.chat_message(msg.type).write(msg.content)
-
 
 if cmp := st.chat_input(placeholder="提问或输入企业名称"):
     st.chat_message("user").write(cmp)
