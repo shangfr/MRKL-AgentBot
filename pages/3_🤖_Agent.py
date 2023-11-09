@@ -8,8 +8,8 @@ import streamlit as st
 from langchain.callbacks import StreamlitCallbackHandler
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 
-from vectorstores import qa_retrieval
-from modules import react_agent
+from vectorstores import qa_retrieval,summarize
+from modules import custom_react_agent
 from database import create_research_db, insert_research, read_research_table
 
 st.set_page_config(page_title="MRKL", page_icon="🤖")
@@ -38,105 +38,67 @@ def chat_research():
 
 
 def generate_research():
-    st.subheader("Generate Research")
 
-    if userInput := st.chat_input(placeholder="输入企业名称", key="chat02"):
+    if user_input := st.chat_input(placeholder="输入企业名称", key="chat02"):
 
-        st.subheader("Generating Introduction:")
-        question1 = f'查找关于{userInput}的企业介绍，尤其是在绿色环保主题下的一些内容。'
+        st.info("Generating Introduction")
+        question1 = f'查找关于{user_input}的企业介绍，尤其是在绿色环保主题下的一些内容。'
         intro = qa_agent(question1)
 
-        st.subheader("Generating Statistical Facts:")
-        question2 = f'''
-            参考输入: {userInput}和介绍内容：{intro}
-            \n判断{userInput}是否是绿色企业，生成关于{userInput}是或不是绿色企业的3到5个定量事实的列表； 
-            \n仅返回定量事实列表；
+        st.info("Generating Statistical Facts")
+        question2 = f'''查找关于{user_input}企业最近1年经营活动产生的污染物排放、治理情况材料；
+            \n判断{user_input}是否是绿色企业，生成关于{user_input}污染物排放、治理情况的3到5个定量事实的列表；评估出具体数值；
         '''
-        quantFacts = qa_agent(question2)
+        quant_facts = qa_agent(question2)
 
-        prev_ai_research = ""
-
-        st.subheader("Previous Related AI Research:")
-        with st.spinner("Researching Pevious Research"):
-            prev_ai_research = st.session_state.qa.run(f'''
-                \n参考绿色企业标准，写下: {userInput}是否满足这些标准。
+        st.info("Green Enterprise Standard Matching")
+        with st.spinner("Retrieval & Matching"):
+            green_matching = st.session_state.qa.run(f'''
+                \n查找绿色企业标准，参考{intro}\n\n{quant_facts}\n\n分析{user_input}是否满足这些标准。
             ''')
-            st.write(prev_ai_research)
+            st.success(green_matching)
 
-        st.subheader("Generating Recent Publications:")
-        question3 = f'''
-            参考输入: "{userInput}".
-            \n参考简介: "{intro}",
-            \n参考事实: "{quantFacts}"
-            \n生成3-5个关于{userInput}的主要内容.
-            \n包含 标题, 链接, 摘要. 
-        '''
-        papers = qa_agent(question3)
+        insert_research(user_input, intro, quant_facts, green_matching)
 
-        st.subheader("Generating Reccomended Books:")
-        question4 = f'''
-            参考输入: "{userInput}".
-            \n参考简介: "{intro}",
-            \n参考事实: "{quantFacts}"
-            \n生成3-5个关于{userInput}的一些判断数据.
-        '''
-        readings = qa_agent(question4)
-
-        ytlinks = "www.baidu.com"
-        insert_research(userInput, intro, quantFacts,
-                        papers, readings, ytlinks, prev_ai_research)
-        # research_text = [userInput, intro, quantFacts,
-        #                papers, readings, ytlinks, prev_ai_research]
-
-        #db = vectordb(research_text, collection_name=collection_name)
-
+def md_report(df):
+    md_str = f'''# {df.user_input[0]}-绿色报告\n
+📝 简介：{df.intro[0]}\n
+⭐ 污染与治理：{df.quant_facts[0]}\n
+🖊️ 绿色判断：{df.green_matching[0]}\n
+'''
+    return summarize(md_str)
+    
+    
 
 def generate_history():
-    st.subheader("Generate History")
 
     st.dataframe(read_research_table())
-    selected_input = st.selectbox(label="Previous User Inputs", options=[
+    col1,col2 = st.columns([9,1])
+    selected_input = col1.selectbox(label="Previous User Inputs", options=[
                                   i for i in read_research_table().user_input])
-    if st.button("Render Research") and selected_input:
+
+    if col2.button("生成企业报告") and selected_input:
         with st.expander("Rendered Previous Research", expanded=True):
             selected_df = read_research_table()
             selected_df = selected_df[selected_df.user_input == selected_input].reset_index(
                 drop=True)
-
-            st.subheader("User Input:")
-            st.write(selected_df.user_input[0])
-
-            st.subheader("Introduction:")
-            st.write(selected_df.introduction[0])
-
-            st.subheader("Quantitative Facts:")
-            st.write(selected_df.quant_facts[0])
-
-            st.subheader("Previous Related AI Research:")
-            st.write(selected_df.prev_ai_research[0])
-
-            st.subheader("Recent Publications:")
-            st.write(selected_df.publications[0])
-
-            st.subheader("Recommended Books:")
-            st.write(selected_df.books[0])
-
-            st.subheader("Web Links:")
-            st.write(selected_df.ytlinks[0])
-
-
+            md_str = md_report(selected_df)
+            st.markdown(md_str)
+    
+                
+            
 msgs = StreamlitChatMessageHistory()
 
 if "agent" not in st.session_state:
     create_research_db()
-    st.session_state.agent = react_agent(msgs)
+    st.session_state.agent = custom_react_agent(msgs)
     st.session_state.qa = qa_retrieval(rsd=False, collection_name="test")
 
 
 def update(tools, collection_name):
     st.session_state.qa = qa_retrieval(
         rsd=False, collection_name=collection_name)
-    st.session_state.agent = react_agent(msgs, tools.append(collection_name))
+    st.session_state.agent = custom_react_agent(msgs, tools.append(collection_name))
 
 
 with st.sidebar.form('update'):
@@ -180,7 +142,6 @@ else:
 
     if len(msgs.messages) == 0 or st.sidebar.button("清空聊天记录", use_container_width=True):
         msgs.clear()
-        msgs.add_ai_message("我会根据以上标准帮你对企业进行评价。")
 
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)

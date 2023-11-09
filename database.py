@@ -11,15 +11,12 @@ db_path = "chroma/chroma.sqlite3"
 def create_research_db():
     with sqlite3.connect(db_path) as conn:
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS Research (
+            CREATE TABLE IF NOT EXISTS research (
                 research_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_input TEXT,
-                introduction TEXT,
+                intro TEXT,
                 quant_facts TEXT,
-                publications TEXT,
-                books TEXT,
-                ytlinks TEXT,
-                prev_ai_research TEXT
+                green_matching TEXT
             )
         """)
 
@@ -30,18 +27,18 @@ def create_messages_db():
 
 def read_research_table():
     with sqlite3.connect(db_path) as conn:
-        query = "SELECT * FROM Research"
+        query = "SELECT * FROM research"
         df = pd.read_sql_query(query, conn)
     return df
 
 
 
-def insert_research(user_input, introduction, quant_facts, publications, books, ytlinks, prev_ai_research):
+def insert_research(user_input, intro, quant_facts, green_matching):
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO Research (user_input, introduction, quant_facts, publications, books, ytlinks, prev_ai_research)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (user_input, introduction, quant_facts, publications, books, ytlinks, prev_ai_research))
+            INSERT INTO research (user_input, intro, quant_facts, green_matching)
+            VALUES (?, ?, ?, ?)
+        """, (user_input, intro, quant_facts, green_matching))
 
 

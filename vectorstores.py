@@ -51,7 +51,7 @@ def vectordb(file=None, splits=None, chunk_size=1000, collection_name="test"):
     persist_directory = "./chroma"
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     if file:
-        splits = doc_splits(file, chunk_size, collection_name)
+        splits = doc_splits(file, chunk_size)
 
     if splits:
         if isinstance(splits[0], str):
@@ -101,19 +101,19 @@ def qa_retrieval(k=1, rsd=True, prompt_template="", db=None, collection_name="te
 
 
 def summarize(docs):
-    if len(docs) > 3:
+    if len(docs) > 5000:
         print("ERNIE-Bot-turbo当前只支持6k输入")
-        docs = docs[:3]
+        #docs = docs[:3]
 
     # Define prompt
-    prompt_template = """请对以下各部分内容进行摘要总结：:
-    "{text}"
-    摘要总结:"""
+    prompt_template = """参考以下内容，用markdown格式写一篇分析报告，确保内容正确，不要太啰嗦。
+    "内容：{text}"
+    报告:"""
     prompt = PromptTemplate.from_template(prompt_template)
 
     llm_chain = LLMChain(llm=llm, prompt=prompt)
 
     # Define StuffDocumentsChain
-    stuff_chain = StuffDocumentsChain(llm_chain=llm_chain)
+    # stuff_chain = StuffDocumentsChain(llm_chain=llm_chain)
+    return llm_chain.run(docs)
 
-    return stuff_chain.run(docs)
