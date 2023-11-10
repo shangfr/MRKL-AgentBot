@@ -125,23 +125,32 @@ class CustomOutputParser(AgentOutputParser):
 
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         # Check if agent should finish
+        llm_output = llm_output.replace("：", ":")
         if "最终答案:" in llm_output:
+            output = "\n".join([ans.strip()
+                               for ans in llm_output.split("最终答案:")])
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
                 # It is not recommended to try anything else at the moment :)
-                return_values={"output": llm_output.split(
-                    "最终答案:")[-1].strip()},
+                return_values={"output": output},
                 log=llm_output,
             )
         # Parse out the action and action input
-        regex = r"行动\s*\d*\s*:(.*?)\n行动\s*\d*\s*输入\s*\d*\s*:[\s]*(.*)"
+        regex = r"行动\s*\d*\s*:(.*?)\n执行\s*\d*\s*:(.*?)\n观察\s*\d*\s*:[\s]*(.*)"
         match = re.search(regex, llm_output, re.DOTALL)
-        if not match:
-            raise OutputParserException(f"无法解析大模型输出: `{llm_output}`")
-        action = match.group(1).strip()
-        action_input = match.group(2)
-        # Return the action and action input
-        return AgentAction(tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output)
+        if match:
+            #raise OutputParserException(f"无法解析大模型输出: `{llm_output}`")
+            action = match.group(1).strip().strip('"')
+            action_input = match.group(2).strip().strip('"')
+            # Return the action and action input
+            return AgentAction(tool=action, tool_input=action_input, log=llm_output)
+        else:
+            return AgentFinish(
+                # Return values is generally always a dictionary with a single `output` key
+                # It is not recommended to try anything else at the moment :)
+                return_values={"output": llm_output},
+                log=llm_output,
+            )
 
 
 def custom_react_agent(msgs=None, options=["test"]):
@@ -149,26 +158,23 @@ def custom_react_agent(msgs=None, options=["test"]):
     tools = get_tools_lst(options)
     tool_names = [tool.name for tool in tools]
     # Set up the base template
-    template = """尽你所能回答以下问题，保证回答正确。你可以访问以下工具：
+    template = """针对提问，你可以选择使用以下工具：
 
     {tools}
 
-    使用以下格式:
+    请使用以下格式回答问题:
 
     提问: 回答问题
-    思考: 你应该时刻考虑该做什么
+    思考: 根据给定的工具，考虑该做什么
     行动: 要采取的行动，应该是[{tool_names}]
-    行动输入: 行动的输入
-    感知: 行动的结果
-    ... (像这种 思考/行动/行动输入/感知 可以重复N次)
-    思考: 我现在知道最终答案了
-    最终答案: 针对最初的提问最终答案
+    执行: 行动的输入
+    观察: 执行的结果
+    最终答案: 针对最初的提问，给出最终答案，包含相关知识及判断依据等。
 
-    开始在给出最后答案时，保证回答正确。使用大量的“参数”
+    开始！在你给出最终答案后请立即停止，保证回答正确。
 
     之前对话的历史记录:
     {chat_history}
-
 
     提问: {input}
     {agent_scratchpad}"""
@@ -185,7 +191,7 @@ def custom_react_agent(msgs=None, options=["test"]):
     agent = LLMSingleActionAgent(
         llm_chain=llm_chain,
         output_parser=output_parser,
-        stop=["\n感知:"],
+        stop=["\n观察:"],
         allowed_tools=tool_names
     )
 
@@ -198,7 +204,7 @@ def custom_react_agent(msgs=None, options=["test"]):
                                                 memory_key="chat_history", return_messages=True)
 
     agent_executor = AgentExecutor.from_agent_and_tools(
-        agent=agent, tools=tools, verbose=True, memory=memory)
+        agent=agent, tools=tools, verbose=False, memory=memory)
 
     return agent_executor
 

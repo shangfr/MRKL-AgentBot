@@ -52,7 +52,7 @@ with st.sidebar:
         collections = db._client.list_collections()
         st.info(f"Vector DB 新增数据成功！  {cnt}")
         collections = [c.name for c in collections]
-        st.info("文件名:", uploaded_file.name)
+        st.info(f"文件名:{uploaded_file.name}")
     if st.button("重置", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()

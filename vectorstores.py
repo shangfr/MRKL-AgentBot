@@ -106,7 +106,7 @@ def summarize(docs):
         #docs = docs[:3]
 
     # Define prompt
-    prompt_template = """参考以下内容，用markdown格式写一篇分析报告，确保内容正确，不要太啰嗦。
+    prompt_template = """现在你是一位资深投资人，参考以下内容，写一篇分析报告，要求包含以下内容。其中在企业绿色评价部分，你需要从可持续发展、成长性、收益性等方面切入。需要结合权威机构发布的数据。内容详实，有层次结构。
     "内容：{text}"
     报告:"""
     prompt = PromptTemplate.from_template(prompt_template)
@@ -116,4 +116,3 @@ def summarize(docs):
     # Define StuffDocumentsChain
     # stuff_chain = StuffDocumentsChain(llm_chain=llm_chain)
     return llm_chain.run(docs)
-

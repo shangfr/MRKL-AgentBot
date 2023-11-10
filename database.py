@@ -8,37 +8,56 @@ import sqlite3
 import pandas as pd
 
 db_path = "chroma/chroma.sqlite3"
-def create_research_db():
+
+
+def create_db():
     with sqlite3.connect(db_path) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS research (
                 research_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_input TEXT,
+                cmp TEXT,
                 intro TEXT,
-                quant_facts TEXT,
-                green_matching TEXT
+                green_matching TEXT,
+                valuation TEXT,
+                rate TEXT
+            )
+        """)
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS report (
+                report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                research_id INTEGER,
+                cmp TEXT,
+                report TEXT
             )
         """)
 
 
-def create_messages_db():
-    pass
-
-
-def read_research_table():
-    with sqlite3.connect(db_path) as conn:
+def read_table(ids=None):
+    if ids:
+        query = f"SELECT * FROM report WHERE research_id={ids}"
+    else:
         query = "SELECT * FROM research"
+
+    with sqlite3.connect(db_path) as conn:
         df = pd.read_sql_query(query, conn)
     return df
 
 
+def insert_table(tuple_data):
 
-def insert_research(user_input, intro, quant_facts, green_matching):
+    if len(tuple_data) == 5:
+        sql = """
+            INSERT INTO research (cmp, intro, green_matching, valuation, rate)
+            VALUES (?, ?, ?, ?, ?)
+        """
+    elif len(tuple_data) == 3:
+        sql = """
+             INSERT INTO report (research_id, cmp, report)
+             VALUES (?, ?, ?)
+         """
+
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO research (user_input, intro, quant_facts, green_matching)
-            VALUES (?, ?, ?, ?)
-        """, (user_input, intro, quant_facts, green_matching))
-
-
+        cursor.execute(sql, tuple_data)

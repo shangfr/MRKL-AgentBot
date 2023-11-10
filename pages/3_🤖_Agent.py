@@ -8,9 +8,9 @@ import streamlit as st
 from langchain.callbacks import StreamlitCallbackHandler
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 
-from vectorstores import qa_retrieval,summarize
+from vectorstores import qa_retrieval, summarize
 from modules import custom_react_agent
-from database import create_research_db, insert_research, read_research_table
+from database import create_db, read_table, insert_table
 
 st.set_page_config(page_title="MRKL", page_icon="🤖")
 st.header("🤖 Research MRKL Agent Bot")
@@ -28,7 +28,7 @@ def qa_agent(question):
     with st.chat_message("assistant"):
         st_callback = StreamlitCallbackHandler(st.container())
         answer = st.session_state.agent.run(question, callbacks=[st_callback])
-        #st.write(answer)
+        # st.write(answer)
     return answer
 
 
@@ -39,58 +39,74 @@ def chat_research():
 
 def generate_research():
 
-    if user_input := st.chat_input(placeholder="输入企业名称", key="chat02"):
+    if cmp := st.chat_input(placeholder="输入企业名称", key="chat02"):
 
-        st.info("Generating Introduction")
-        question1 = f'查找关于{user_input}的企业介绍，尤其是在绿色环保主题下的一些内容。'
+        st.info("1. 企业信息收集")
+        question1 = f"{cmp}是一家企业吗？这家企业的主要产品和项目有哪些？给出详细说明。"
         intro = qa_agent(question1)
 
-        st.info("Generating Statistical Facts")
-        question2 = f'''查找关于{user_input}企业最近1年经营活动产生的污染物排放、治理情况材料；
-            \n判断{user_input}是否是绿色企业，生成关于{user_input}污染物排放、治理情况的3到5个定量事实的列表；评估出具体数值；
-        '''
-        quant_facts = qa_agent(question2)
-
-        st.info("Green Enterprise Standard Matching")
+        st.info("2. 绿色企业判断")
         with st.spinner("Retrieval & Matching"):
-            green_matching = st.session_state.qa.run(f'''
-                \n查找绿色企业标准，参考{intro}\n\n{quant_facts}\n\n分析{user_input}是否满足这些标准。
-            ''')
+            green_matching = st.session_state.qa.run(
+                f"参考{intro}企业信息，查找相关的绿色标准，分析{cmp}是否满足这些标准。")
             st.success(green_matching)
 
-        insert_research(user_input, intro, quant_facts, green_matching)
+        st.info("3. 绿色企业评价")
+        question1 = f"参考绿色企业的标准，{cmp}公司是否是一家绿色企业？如果是，给出该公司在符合绿色企业标准的相关信息。"
+        valuation = qa_agent(question1)
 
-def md_report(df):
-    md_str = f'''# {df.user_input[0]}-绿色报告\n
-📝 简介：{df.intro[0]}\n
-⭐ 污染与治理：{df.quant_facts[0]}\n
-🖊️ 绿色判断：{df.green_matching[0]}\n
+        st.info("4. 构建评分模型")
+        question2 = f"根据绿色企业标准的相关信息，请给出{cmp}在每项标准下的得分，并给出最终评分。"
+        rate = qa_agent(question2)
+
+        insert_table((cmp, intro, green_matching, valuation, rate))
+
+
+def md_report(value_dict):
+    research_id = value_dict["research_id"]
+    cmp = value_dict["cmp"]
+    intro = value_dict["intro"]
+    green_matching = value_dict["green_matching"]
+    valuation = value_dict["valuation"]
+    rate = value_dict["rate"]
+
+    md_str = f'''# {cmp}绿色评估报告\n
+📝 **简介：**{intro}\n
+🖊️ 绿色判断：{green_matching}\n
+⭐ 绿色评估：{valuation}\n
+⭐ 绿色评分：{rate}\n
 '''
-    return summarize(md_str)
-    
-    
+    report = summarize(md_str)
+    insert_table((research_id, cmp, report))
+
+    return report
+
 
 def generate_history():
+    df = read_table()
+    st.dataframe(df, hide_index=True)
+    col1, col2 = st.columns([9, 1])
+    options = df["cmp"].tolist()
+    options_id = df["research_id"].tolist()
+    index = col1.selectbox("Previous User Inputs", range(
+        len(options)), format_func=lambda x: options[x])
 
-    st.dataframe(read_research_table())
-    col1,col2 = st.columns([9,1])
-    selected_input = col1.selectbox(label="Previous User Inputs", options=[
-                                  i for i in read_research_table().user_input])
-
-    if col2.button("生成企业报告") and selected_input:
-        with st.expander("Rendered Previous Research", expanded=True):
-            selected_df = read_research_table()
-            selected_df = selected_df[selected_df.user_input == selected_input].reset_index(
-                drop=True)
-            md_str = md_report(selected_df)
+    if index:
+        df_r = read_table(options_id[index])
+        for rstr in df_r["report"]:
+            with st.expander(f"📝 查看{options[index]}报告"):
+                st.markdown(rstr)
+    if col2.button("生成企业报告"):
+        with st.expander(f"⭐ 生成{options[index]}报告", expanded=True):
+            selected_df = df.loc[df["research_id"] == options_id[index]]
+            md_str = md_report(selected_df.to_dict('records')[0])
             st.markdown(md_str)
-    
-                
-            
+
+
 msgs = StreamlitChatMessageHistory()
 
 if "agent" not in st.session_state:
-    create_research_db()
+    create_db()
     st.session_state.agent = custom_react_agent(msgs)
     st.session_state.qa = qa_retrieval(rsd=False, collection_name="test")
 
@@ -98,7 +114,8 @@ if "agent" not in st.session_state:
 def update(tools, collection_name):
     st.session_state.qa = qa_retrieval(
         rsd=False, collection_name=collection_name)
-    st.session_state.agent = custom_react_agent(msgs, tools.append(collection_name))
+    st.session_state.agent = custom_react_agent(
+        msgs, tools.append(collection_name))
 
 
 with st.sidebar.form('update'):
@@ -111,12 +128,11 @@ with st.sidebar.form('update'):
         ['网络搜索', '工商信息', '企业专利', '企业项目'],
         ['网络搜索', '工商信息'])
 
-
     collection_name = st.radio("Select Collection to Retrieve",
-                                 options=collections,
-                                 index=0,
-                                 horizontal=True
-                                 )
+                               options=collections,
+                               index=0,
+                               horizontal=True
+                               )
 
     st.form_submit_button('Update Agent', on_click=update, use_container_width=True,
                           args=[options, collection_name])
@@ -132,7 +148,7 @@ method = st.selectbox(
 
 if method == mts[2]:
     generate_history()
-    
+
 else:
     if method == mts[0]:
         chat_research()
@@ -145,5 +161,3 @@ else:
 
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
-        
-        
