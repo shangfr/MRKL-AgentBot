@@ -49,6 +49,7 @@ def generate_research():
         with st.spinner("Retrieval & Matching"):
             green_matching = st.session_state.qa.run(
                 f"参考{intro}企业信息，查找相关的绿色标准，分析{cmp}是否满足这些标准。")
+        with st.expander("√ Complete!"):
             st.success(green_matching)
 
         st.info("3. 绿色企业评价")
@@ -150,14 +151,16 @@ if method == mts[2]:
     generate_history()
 
 else:
+    
+    if len(msgs.messages) == 0 or st.sidebar.button("清空聊天记录", use_container_width=True):
+        msgs.clear()
+
+    for msg in msgs.messages:
+        st.chat_message(msg.type).write(msg.content)
+        
     if method == mts[0]:
         chat_research()
 
     elif method == mts[1]:
         generate_research()
 
-    if len(msgs.messages) == 0 or st.sidebar.button("清空聊天记录", use_container_width=True):
-        msgs.clear()
-
-    for msg in msgs.messages:
-        st.chat_message(msg.type).write(msg.content)

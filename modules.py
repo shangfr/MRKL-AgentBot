@@ -126,13 +126,11 @@ class CustomOutputParser(AgentOutputParser):
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         # Check if agent should finish
         llm_output = llm_output.replace("：", ":")
-        if "最终答案:" in llm_output:
-            output = "\n".join([ans.strip()
-                               for ans in llm_output.split("最终答案:")])
+        if "答案:" in llm_output:
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
                 # It is not recommended to try anything else at the moment :)
-                return_values={"output": output},
+                return_values={"output": llm_output.split("答案:")[-1].strip()},
                 log=llm_output,
             )
         # Parse out the action and action input
@@ -144,14 +142,14 @@ class CustomOutputParser(AgentOutputParser):
             action_input = match.group(2).strip().strip('"')
             # Return the action and action input
             return AgentAction(tool=action, tool_input=action_input, log=llm_output)
+
         else:
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
                 # It is not recommended to try anything else at the moment :)
-                return_values={"output": llm_output},
+                return_values={"output": "🍃"+llm_output},
                 log=llm_output,
             )
-
 
 def custom_react_agent(msgs=None, options=["test"]):
 
