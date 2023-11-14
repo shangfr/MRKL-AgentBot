@@ -22,18 +22,20 @@ def ask_qa(question, sk, collection_name):
 
 @st.cache_resource
 def get_vectordb(**kwargs):
-    return vectordb(**kwargs)
+    db = vectordb(**kwargs)
+    collections = db._client.list_collections()
+    #cnt = db._collection.count()
+    #st.info(f"Vector DB 新增数据成功！  {cnt}")
+    return [c.name for c in collections]
     
     
 with st.sidebar:
-    col1,col2 = st.columns(2)
+    col1, col2 = st.columns(2)
     on = col1.toggle('New Collection')
     if on:
         collection_name = col2.text_input('Name', "agent")
     else:
-        db = get_vectordb()
-        collections = db._client.list_collections()
-        collections = [c.name for c in collections]
+        collections = get_vectordb()
         collection_name = col2.radio("Select Collection to Retrieve",
                                    options=collections,
                                    index=0,
@@ -43,16 +45,19 @@ with st.sidebar:
     uploaded_file = st.file_uploader(
         label="📖 上传资料", accept_multiple_files=False
     )
+    urls = []
     if uploaded_file is None:
         db = get_vectordb(collection_name = collection_name)
-        st.info("上传文档资料，提升问答质量。")
+        st.info("👆上传文档👇输入网址，提升问答质量。")
     else:
-        db = get_vectordb(file=uploaded_file, chunk_size=chunk_size, collection_name = collection_name)
-        cnt = db._collection.count()
-        collections = db._client.list_collections()
-        st.info(f"Vector DB 新增数据成功！  {cnt}")
-        collections = [c.name for c in collections]
         st.info(f"文件名:{uploaded_file.name}")
+
+    url = st.text_input('输入网址：', "",help='L网页URL：动态或静态网页（通过Chromium服务渲染）')
+    if url:
+        urls = url.strip().replace(" ","").split("\n")
+
+    if st.button("入库", use_container_width=True):
+        _ = get_vectordb(urls=urls, chunk_size=chunk_size, collection_name = collection_name)  
     if st.button("重置", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
