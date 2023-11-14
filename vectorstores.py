@@ -137,3 +137,14 @@ def summarize(docs):
     # Define StuffDocumentsChain
     # stuff_chain = StuffDocumentsChain(llm_chain=llm_chain)
     return llm_chain.run(docs)
+
+
+def qa_keywords(query,text):
+    # Define prompt
+    prompt_template = """参考以下内容，请回答{query}。
+    "内容：{text}"
+    回答:"""
+    prompt = PromptTemplate.from_template(prompt_template)
+    llm_chain = LLMChain(llm=llm, prompt=prompt)
+
+    return llm_chain({"query":query,"text":text})

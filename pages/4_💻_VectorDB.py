@@ -6,6 +6,7 @@ Created on Thu Nov  2 11:44:53 2023
 """
 import streamlit as st
 from peek import ChromaPeek
+from vectorstores import qa_keywords
 
 st.set_page_config(page_title="VectorDB", page_icon="💻")
 st.header("Chroma Peek 👀")
@@ -59,12 +60,29 @@ if delete_ids:
         st.markdown(f"Delete ids: **{delete_ids}** 🎈")
 
 st.divider()
+col0, col1 = st.columns([3, 1])
 
-query = st.text_input("文档查询", placeholder="按相似度返回前3个")
+sk = col1.number_input("返回文档数", 3, 5)
+query = col0.text_input("文档查询", placeholder=f"按相似度返回前{sk}个")
+on = col1.toggle('回答')
+
 if query:
-    result_df = peeker.query(query, collection_selected, dataframe=True)
-    
+    result_df = peeker.query(query, collection_selected, k=sk, dataframe=True)
     st.dataframe(result_df, use_container_width=True)
-
-
-        
+    
+    if on:
+        text = str(result_df["documents"].tolist())
+        if len(text) > 5000:
+            st.info("ERNIE-Bot-turbo当前只支持6k输入")
+            st.stop()
+    
+        response = qa_keywords(query,text)
+        st.success(response['text'])
+    
+    
+    
+    
+    
+    
+    
+    

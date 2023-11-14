@@ -56,15 +56,18 @@ with st.sidebar:
     if url:
         urls = url.strip().replace(" ","").split("\n")
 
-    if st.button("入库", use_container_width=True):
-        _ = get_vectordb(urls=urls, chunk_size=chunk_size, collection_name = collection_name)  
+    if urls==[] and uploaded_file is None:
+        st.warning('没有可分析的文本。', icon="⚠️")
+    else:
+        if st.button("入库", use_container_width=True):
+            _ = get_vectordb(file=uploaded_file, urls=urls, chunk_size=chunk_size, collection_name = collection_name)  
     if st.button("重置", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
 
-sk = st.slider("Number of Documents to Return", 1, 5, key='k')
-
-question = st.text_input(
+col0, col1 = st.columns([3, 1])
+sk = col1.number_input("返回文档数", 1, 5, key='k')
+question = col0.text_input(
     "Ask something about the article",
     placeholder="请对文章进行摘要总结。",
 )
@@ -74,3 +77,5 @@ if question:
     st.success(response["result"])
     with st.expander("📖 Show Source Documents"):
         st.json(response["source_documents"])
+
+ 

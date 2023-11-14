@@ -5,6 +5,7 @@ Created on Tue Nov  7 17:17:40 2023
 @author: shangfr
 """
 import chromadb
+import jieba.analyse
 import pandas as pd
 
 
@@ -34,9 +35,19 @@ class ChromaPeek:
 
     # function to query the selected collection
     def query(self, query_str, collection_name, k=3, dataframe=False):
+        
+        keywords = jieba.analyse.extract_tags(query_str, topK=3)
+        
+        if len(keywords)>1:
+            key_lst = [{"$contains": k} for k in keywords]
+            where_document = {"$or": key_lst}
+        else:
+            where_document = {"$contains": query_str}
+            
         collection = self.client.get_collection(collection_name)
         res = collection.query(
-            query_texts=[query_str], n_results=min(k, len(collection.get()))
+            query_texts=[query_str], n_results=min(k, len(collection.get())),
+            where_document=where_document
         )
         out = {}
         for key, value in res.items():
