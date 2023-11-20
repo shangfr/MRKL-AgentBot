@@ -22,7 +22,7 @@ from langchain.agents import AgentExecutor, LLMSingleActionAgent, AgentOutputPar
 from langchain.tools import Tool, BaseTool, DuckDuckGoSearchRun
 from langchain.prompts import StringPromptTemplate
 from langchain.schema import AgentAction, AgentFinish, OutputParserException
-
+from langchain_experimental.tools import PythonREPLTool
 from vectorstores import qa_retrieval
 
 
@@ -52,19 +52,27 @@ def get_tools_lst(options):
     # 工具本地检索
     qa = qa_retrieval(rsd=False, collection_name=collection_name)
     search = DuckDuckGoSearchRun()
+    python3 = PythonREPLTool()
 
     my_tools = [
         Tool(
             name="网络搜索",
             func=search.run,
-            description="使用此功能从网络搜索中查找企业信息，始终用作第一个工具。",
+            description="使用此功能从网络搜索中查找企业信息。",
         ),
         Tool(
             name='政策信息查找工具',
             func=qa.run,
-            description='使用此功能从文档存储中查找政策信息，只有在使用网络搜索工具后才可以用。'
+            description='使用此功能从文档存储中查找政策信息。'
 
-        )]
+        ),
+        Tool(
+            name='python',
+            func=python3.run,
+            description='使用此功能运行python程序。'
+
+        ),        
+        ]
 
     # my_tools.append(CircumferenceTool())
 
@@ -152,7 +160,6 @@ class CustomOutputParser(AgentOutputParser):
             )
 
 def custom_react_agent(msgs=None, options=["test"]):
-
     tools = get_tools_lst(options)
     tool_names = [tool.name for tool in tools]
     # Set up the base template
@@ -230,7 +237,7 @@ def llm_chain(template, msgs=None):
     conversation = LLMChain(
         llm=llm,
         prompt=prompt,
-        verbose=True,
-        memory=memory
+        memory=memory,
+        verbose=False,
     )
     return conversation

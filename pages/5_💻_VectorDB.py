@@ -63,7 +63,7 @@ st.divider()
 col0, col1 = st.columns([3, 1])
 
 sk = col1.number_input("返回文档数", 3, 5)
-query = col0.text_input("文档查询", placeholder=f"按相似度返回前{sk}个")
+query = col0.text_input("搜索", placeholder=f"按相似度返回前{sk}个")
 on = col1.toggle('回答')
 
 if query:

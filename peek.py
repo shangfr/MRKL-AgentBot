@@ -39,14 +39,14 @@ class ChromaPeek:
         keywords = jieba.analyse.extract_tags(query_str, topK=3)
         
         if len(keywords)>1:
-            key_lst = [{"$contains": k} for k in keywords]
+            key_lst = [{"$contains": kw} for kw in keywords]
             where_document = {"$or": key_lst}
         else:
             where_document = {"$contains": query_str}
             
         collection = self.client.get_collection(collection_name)
         res = collection.query(
-            query_texts=[query_str], n_results=min(k, len(collection.get())),
+            query_texts=[query_str], n_results=k,
             where_document=where_document
         )
         out = {}

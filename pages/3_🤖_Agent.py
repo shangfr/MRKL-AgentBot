@@ -112,11 +112,13 @@ if "agent" not in st.session_state:
     st.session_state.qa = qa_retrieval(rsd=False, collection_name="test")
 
 
-def update(tools, collection_name):
+def update(tools):
+    
     st.session_state.qa = qa_retrieval(
-        rsd=False, collection_name=collection_name)
+        rsd=False, collection_name=tools[-1])
+    
     st.session_state.agent = custom_react_agent(
-        msgs, tools.append(collection_name))
+        msgs, tools)
 
 
 with st.sidebar.form('update'):
@@ -134,16 +136,16 @@ with st.sidebar.form('update'):
                                index=0,
                                horizontal=True
                                )
-
+    options.append(collection_name)
     st.form_submit_button('Update Agent', on_click=update, use_container_width=True,
-                          args=[options, collection_name])
+                          args=[options])
 
 
 mts = ["Agent Chat", "Generate Research", "History"]
 method = st.selectbox(
     "功能选择",
     mts,
-    index=None,
+    index=0,
     placeholder="Select contact method...",
 )
 
