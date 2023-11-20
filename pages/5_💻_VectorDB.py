@@ -60,14 +60,16 @@ if delete_ids:
         st.markdown(f"Delete ids: **{delete_ids}** 🎈")
 
 st.divider()
-col0, col1 = st.columns([3, 1])
+col0, col1, col2 = st.columns([3, 1, 1])
 
 sk = col1.number_input("返回文档数", 3, 5)
 query = col0.text_input("搜索", placeholder=f"按相似度返回前{sk}个")
-on = col1.toggle('回答')
+filters = col2.toggle('词过滤')
+on = col2.toggle('回答')
+
 
 if query:
-    result_df = peeker.query(query, collection_selected, k=sk, dataframe=True)
+    result_df = peeker.query(query, collection_selected, k=sk, dataframe=True, filters=filters)
     st.dataframe(result_df, use_container_width=True)
     
     if on:

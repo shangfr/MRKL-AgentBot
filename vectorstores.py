@@ -12,7 +12,6 @@ from langchain.document_transformers import Html2TextTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.chains.llm import LLMChain
 from langchain.llms import QianfanLLMEndpoint
 from langchain.chains import RetrievalQA
@@ -32,14 +31,16 @@ def parse_url(urls):
 
 
 def doc_splits(file, chunk_size=1000, urls=[]):
-
+    splits = []
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size, chunk_overlap=int(chunk_size/10))
 
     if urls:
         docs = parse_url(urls)
-        splits = text_splitter.split_documents(docs)
-    else:
+        lst = text_splitter.split_documents(docs)
+        splits.extend(lst)
+        
+    if file:
         # Read documents
         temp_dir = tempfile.TemporaryDirectory()
 
@@ -50,7 +51,7 @@ def doc_splits(file, chunk_size=1000, urls=[]):
         if file.name.endswith('.csv'):
             from langchain.document_loaders.csv_loader import CSVLoader
             loader = CSVLoader(temp_filepath, encoding='utf-8')
-            splits = loader.load()
+            lst = loader.load()
             for spl in splits:
                 spl.metadata['source'] = file.name
         else:
@@ -59,21 +60,18 @@ def doc_splits(file, chunk_size=1000, urls=[]):
             docs[0].metadata['source'] = file.name
 
             # Split documents
-            splits = text_splitter.split_documents(docs)
+            lst = text_splitter.split_documents(docs)
+        splits.extend(lst)
 
     return splits
 
 
-def vectordb(file=None, splits=None, urls=[], chunk_size=1000, collection_name="test"):
+def vectordb(file=None, splits=[], urls=[], chunk_size=1000, collection_name="test"):
     persist_directory = "./chroma"
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-
-    if file:
-        splits = doc_splits(file, chunk_size)
-
-    if urls:
-        splits = doc_splits(file, chunk_size, urls)
-
+    
+    splits = doc_splits(file, chunk_size, urls)
+ 
     if splits:
         if isinstance(splits[0], str):
             db = Chroma.from_texts(

@@ -34,15 +34,17 @@ class ChromaPeek:
         return data
 
     # function to query the selected collection
-    def query(self, query_str, collection_name, k=3, dataframe=False):
-        
-        keywords = jieba.analyse.extract_tags(query_str, topK=3)
-        
-        if len(keywords)>1:
-            key_lst = [{"$contains": kw} for kw in keywords]
-            where_document = {"$or": key_lst}
+    def query(self, query_str, collection_name, k=3, dataframe=False, filters=False):
+        if filters:
+            keywords = jieba.analyse.extract_tags(query_str, topK=3)
+    
+            if len(keywords) > 1:
+                key_lst = [{"$contains": kw} for kw in keywords]
+                where_document = {"$or": key_lst}
+            else:
+                where_document = {"$contains": query_str}
         else:
-            where_document = {"$contains": query_str}
+            where_document = None
             
         collection = self.client.get_collection(collection_name)
         res = collection.query(
