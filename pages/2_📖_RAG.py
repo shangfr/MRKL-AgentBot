@@ -23,10 +23,10 @@ def ask_qa(question, sk, collection_name):
 @st.cache_resource
 def get_vectordb(**kwargs):
     db = vectordb(**kwargs)
-    collections = db._client.list_collections()
+    #collections = db._client.list_collections()
     #cnt = db._collection.count()
     #st.info(f"Vector DB 新增数据成功！  {cnt}")
-    return [c.name for c in collections]
+    return db
     
     
 with st.sidebar:
@@ -35,7 +35,9 @@ with st.sidebar:
     if on:
         collection_name = col2.text_input('Name', "agent")
     else:
-        collections = get_vectordb()
+        db = get_vectordb()
+        collections = db._client.list_collections()
+        collections = [c.name for c in collections]
         collection_name = col2.radio("Select Collection to Retrieve",
                                    options=collections,
                                    index=0,
@@ -47,7 +49,7 @@ with st.sidebar:
     )
     urls = []
     if uploaded_file is None:
-        db = get_vectordb(collection_name = collection_name)
+        _ = get_vectordb(collection_name = collection_name)
         st.info("👆上传文档👇输入网址，提升问答质量。")
     else:
         st.info(f"文件名:{uploaded_file.name}")
@@ -66,7 +68,7 @@ with st.sidebar:
         st.cache_resource.clear()
 
 col0, col1 = st.columns([3, 1])
-sk = col1.number_input("返回文档数", 1, 5, key='k')
+sk = col1.number_input("返回文档数", 1, 5 ,3, key='k')
 question = col0.text_input(
     "Ask something about the article",
     placeholder="请对文章进行摘要总结。",

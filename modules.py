@@ -50,6 +50,7 @@ def get_tools_lst(options):
     collection_name = options[-1]
 
     # 工具本地检索
+    qa0 = qa_retrieval(rsd=False, collection_name="test")
     qa = qa_retrieval(rsd=False, collection_name=collection_name)
     search = DuckDuckGoSearchRun()
     python3 = PythonREPLTool()
@@ -61,9 +62,15 @@ def get_tools_lst(options):
             description="使用此功能从网络搜索中查找企业信息。",
         ),
         Tool(
-            name='政策信息查找工具',
+            name='政策(绿色产业指定目录)',
+            func=qa0.run,
+            description='使用此功能从文档存储中查找绿产目录信息。'
+
+        ),
+        Tool(
+            name='新闻查找工具',
             func=qa.run,
-            description='使用此功能从文档存储中查找政策信息。'
+            description='使用此功能从文档存储中查找企业新闻。'
 
         ),
         Tool(

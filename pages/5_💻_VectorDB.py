@@ -28,15 +28,18 @@ with st.sidebar:
              options=collections,
              index=0,
              )
+    if st.button("删除", type="primary"):
+        peeker.client.delete_collection(collection_selected)
+        st.rerun()
     
 df  = peeker.get_collection_data(collection_selected, dataframe=True)
 size = df.shape[0]
 
 if size == 0:
-    st.info(f"集合{collection_selected}共有{size}个向量")
+    st.warning(f"👈 更换集合，当前集合{collection_selected}为空。")
     st.stop()
     
-st.info(f"集合{collection_selected}共有{size}个向量")
+st.info(f"👈 更换集合，当前集合{collection_selected}共有{size}个向量。")
 
 
 edited_df = st.data_editor(df,column_config={
@@ -80,11 +83,4 @@ if query:
     
         response = qa_keywords(query,text)
         st.success(response['text'])
-    
-    
-    
-    
-    
-    
-    
     

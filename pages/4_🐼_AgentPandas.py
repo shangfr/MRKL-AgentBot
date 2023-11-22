@@ -64,6 +64,10 @@ if uploaded_files:
         df = load_data(uploaded_file)
         df_lst.append(df)
 
+    with st.expander("查看数据"):
+        sk = st.number_input("选择", 0, len(df_lst)-1)
+        st.dataframe(df_lst[sk ])
+        
 openai_api_key = st.sidebar.text_input("API Key", type="password")
 
 
