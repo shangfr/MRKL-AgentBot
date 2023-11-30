@@ -26,9 +26,9 @@ from langchain_experimental.tools import PythonREPLTool
 from vectorstores import qa_retrieval
 
 
-class CircumferenceTool(BaseTool):
+class ScoreTool(BaseTool):
     name = "企业评分模型"
-    description = "当需要计算企业绿色得分时，请使用此工具。"
+    description = "计算企业绿色得分。"
 
     def _run(self, score: Union[int, float]):
         if score > 80:
@@ -42,16 +42,28 @@ class CircumferenceTool(BaseTool):
         raise NotImplementedError("This tool does not support async")
 
 
-llm = QianfanLLMEndpoint(streaming=True)
+class MyTool(BaseTool):
+    name = "问题增强"
+    description = "增强提问能力"
 
+    def _run(self, question: str):
+        res = llm(f"根据这个问题：{question}? \n 给出是3个相关问题。")
+        return res
+    
+    
+    def _arun(self, radius: int):
+        raise NotImplementedError("This tool does not support async")
+
+
+llm = QianfanLLMEndpoint(model="ERNIE-Bot",streaming=True)
 
 def get_tools_lst(options):
 
     collection_name = options[-1]
 
     # 工具本地检索
-    qa0 = qa_retrieval(rsd=False, collection_name="test")
-    qa = qa_retrieval(rsd=False, collection_name=collection_name)
+    qa_green = qa_retrieval(k=3, rsd=False, collection_name="green")
+    qa = qa_retrieval(k=3, rsd=False, collection_name=collection_name)
     search = DuckDuckGoSearchRun()
     python3 = PythonREPLTool()
 
@@ -59,29 +71,35 @@ def get_tools_lst(options):
         Tool(
             name="网络搜索",
             func=search.run,
-            description="使用此功能从网络搜索中查找企业信息。",
+            description="从网络搜索中搜索各种信息。",
+           # return_direct=True,
         ),
         Tool(
-            name='政策(绿色产业指定目录)',
-            func=qa0.run,
-            description='使用此功能从文档存储中查找绿产目录信息。'
+            name='绿产目录',
+            func=qa_green.run,
+            description='输入产品名称，查找产品是否满足绿色产业目录要求。'
 
         ),
         Tool(
             name='新闻查找工具',
             func=qa.run,
-            description='使用此功能从文档存储中查找企业新闻。'
+            description='查找企业新闻。'
 
         ),
         Tool(
             name='python',
             func=python3.run,
-            description='使用此功能运行python程序。'
+            description='运行python程序。'
 
-        ),        
+        ),  
+        Tool(
+            name='问题增强',
+            func=MyTool().run,
+            description='增强提问能力'
+        ),   
         ]
 
-    # my_tools.append(CircumferenceTool())
+    #my_tools.append()
 
     return my_tools
 
@@ -122,74 +140,84 @@ class CustomPromptTemplate(StringPromptTemplate):
         # Get the intermediate steps (AgentAction, Observation tuples)
         # Format them in a particular way
         intermediate_steps = kwargs.pop("intermediate_steps")
+        #print(intermediate_steps)
         thoughts = ""
         for action, observation in intermediate_steps:
-            thoughts += action.log
-            thoughts += f"\n感知: {observation}\n思考: "
+            #thoughts += action.log
+            if "not a valid tool" not in observation:
+                thoughts += f"\n🍃信息：{observation}\n"
+
         # Set the agent_scratchpad variable to that value
         kwargs["agent_scratchpad"] = thoughts
-        # Create a tools variable from the list of tools provided
-        kwargs["tools"] = "\n".join(
-            [f"{tool.name}: {tool.description}" for tool in self.tools])
-        # Create a list of tool names for the tools provided
-        kwargs["tool_names"] = ", ".join([tool.name for tool in self.tools])
-        return self.template.format(**kwargs)
+
+        if len(intermediate_steps)>2:
+            kwargs["tools"] = "结合以上内容，按以下格式返回内容：\n初始问题：*** \n最终答案：*** "
+            kwargs["tool_names"] = ""
+            
+        else:
+            mytools = "\n".join(
+                [f"{tool.name}: {tool.description}" for tool in self.tools])
+            kwargs["tools"] = f"请从下面选择一项工具：\n\n{mytools}\n\n回答这个新问题，按以下格式返回内容：\n问题：*** \n工具：*** \n解释：***  \n；"
+            kwargs["tool_names"] = ", ".join([tool.name for tool in self.tools])
+               
+        ttm = self.template.format(**kwargs)
+
+        return ttm
 
 
 class CustomOutputParser(AgentOutputParser):
 
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         # Check if agent should finish
-        llm_output = llm_output.replace("：", ":")
-        if "答案:" in llm_output:
+        #print("%%%%%%%%%%%"+llm_output+"%%%%%%%%")
+        # Parse out the action and action input
+        llm_output = llm_output.replace(":", "：")
+        
+        if "答案：" in llm_output:
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
                 # It is not recommended to try anything else at the moment :)
-                return_values={"output": llm_output.split("答案:")[-1].strip()},
+                return_values={"output": llm_output.split("答案：")[-1].strip()},
                 log=llm_output,
             )
         # Parse out the action and action input
-        regex = r"行动\s*\d*\s*:(.*?)\n执行\s*\d*\s*:(.*?)\n观察\s*\d*\s*:[\s]*(.*)"
-        match = re.search(regex, llm_output, re.DOTALL)
-        if match:
-            #raise OutputParserException(f"无法解析大模型输出: `{llm_output}`")
-            action = match.group(1).strip().strip('"')
-            action_input = match.group(2).strip().strip('"')
-            # Return the action and action input
-            return AgentAction(tool=action, tool_input=action_input, log=llm_output)
+        regex = r"问题\s*\d*\s*：[\s]*(.*?)\n+工具\s*\d*\s*：[\s]*(.*)\n+解释\s*\d*\s*：[\s]*(.*)"
 
-        else:
+        matches = re.findall(regex, llm_output)
+        if not matches:
+            #raise ValueError(f"🍃Could not parse LLM output: `{llm_output}`")
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
                 # It is not recommended to try anything else at the moment :)
-                return_values={"output": "🍃"+llm_output},
+                return_values={"output": llm_output.strip()},
                 log=llm_output,
             )
+        match = matches[-1]
+        action = match[1]
+        action_input = match[0]#+"--"+match[2]
+        
+        tnames = ["网络搜索", "绿产目录", "新闻查找工具", "python", "问题增强"]
+        if action not in tnames:
+            for regex in tnames:
+                if re.search(regex, action):
+                    action = regex
+                    break
+
+        # Return the action and action input
+        return AgentAction(tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output)
+
+
 
 def custom_react_agent(msgs=None, options=["test"]):
     tools = get_tools_lst(options)
     tool_names = [tool.name for tool in tools]
     # Set up the base template
-    template = """针对提问，你可以选择使用以下工具：
-
-    {tools}
-
-    请使用以下格式回答问题:
-
-    提问: 回答问题
-    思考: 根据给定的工具，考虑该做什么
-    行动: 要采取的行动，应该是[{tool_names}]
-    执行: 行动的输入
-    观察: 执行的结果
-    最终答案: 针对最初的提问，给出最终答案，包含相关知识及判断依据等。
-
-    开始！在你给出最终答案后请立即停止，保证回答正确。
-
-    之前对话的历史记录:
-    {chat_history}
-
-    提问: {input}
-    {agent_scratchpad}"""
+    template = """对话记录：\n{chat_history}
+{agent_scratchpad}
+根据这个问题：{input}? \n 给出是1个相关问题。
+{tools}
+"""
+    
     prompt = CustomPromptTemplate(
         template=template,
         tools=tools,
@@ -203,7 +231,7 @@ def custom_react_agent(msgs=None, options=["test"]):
     agent = LLMSingleActionAgent(
         llm_chain=llm_chain,
         output_parser=output_parser,
-        stop=["\n观察:"],
+        stop=["解释"],
         allowed_tools=tool_names
     )
 

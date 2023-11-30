@@ -43,7 +43,7 @@ with st.sidebar:
                                    index=0,
                                    horizontal=True
                                    )
-    chunk_size = st.slider("Chunk Size", 100, 384, 300, help="openai:text-embedding-ada-002 & 8191")
+    chunk_size = st.slider("Chunk Size", 100, 290, 290, help="openai:text-embedding-ada-002 & 8191")
     uploaded_file = st.file_uploader(
         label="📖 上传资料", accept_multiple_files=False
     )

@@ -27,14 +27,12 @@ with st.sidebar:
     with st.expander("评分设置"):
         score_st = st.text_area(
             "",
-            '''按照三个层次标准，可以分别对企业在各项标准上的表现进行评分，最后进行综合评分。每项标准在1~100分之间评分。
-            绿色企业评分 = 基础标准 + 核心标准 + 高度标准
-            ''',
+            '''按照三个层次标准，可以分别对企业在各项标准上的表现进行评分，最后进行综合评分。每项标准在1~100分之间评分。\n\n绿色企业评分 = 基础标准 + 核心标准 + 高度标准''',
             height=100, help="总长度不能超过1000 token")
 
     on = st.toggle('自动执行')
 
-template = f"{role_st}\n\n{reference_st}\n\n{score_st}\n\n回答问题时，将问题分解成若干个简单问题，然后逐个回答。确保答案正确，不要太啰嗦。"
+template = f"{role_st}\n\n{reference_st}\n\n{score_st}"
 msgs = StreamlitChatMessageHistory()
 conversation = llm_chain(template, msgs)
 
