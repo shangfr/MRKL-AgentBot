@@ -4,10 +4,19 @@ Created on Tue Nov  7 17:17:40 2023
 
 @author: shangfr
 """
+import qianfan
 import chromadb
 import jieba.analyse
 import pandas as pd
+from chromadb import Documents, EmbeddingFunction, Embeddings
 
+emb = qianfan.Embedding()
+
+class MyEmbeddingFunction(EmbeddingFunction):
+    def __call__(self, texts: Documents) -> Embeddings:
+        resp = emb.do(texts)
+        embeddings = [resp['data'][0]['embedding']]
+        return embeddings
 
 class ChromaPeek:
     def __init__(self, path):
@@ -36,7 +45,7 @@ class ChromaPeek:
     # function to query the selected collection
     def query(self, query_str, collection_name, k=3, dataframe=False, filters=False):
         if filters:
-            keywords = jieba.analyse.extract_tags(query_str, topK=3)
+            keywords = jieba.analyse.extract_tags(query_str, topK=10)
     
             if len(keywords) > 1:
                 key_lst = [{"$contains": kw} for kw in keywords]
@@ -45,8 +54,10 @@ class ChromaPeek:
                 where_document = {"$contains": query_str}
         else:
             where_document = None
-            
-        collection = self.client.get_collection(collection_name)
+        if collection_name == "qianfan":
+            collection = self.client.get_collection(collection_name, embedding_function=MyEmbeddingFunction())
+        else:
+            collection = self.client.get_collection(collection_name)
         res = collection.query(
             query_texts=[query_str], n_results=k,
             where_document=where_document

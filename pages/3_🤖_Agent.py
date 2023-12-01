@@ -42,18 +42,18 @@ def generate_research():
     if cmp := st.chat_input(placeholder="输入企业名称", key="chat02"):
 
         st.info("1. 企业信息收集")
-        question1 = f"{cmp}是一家企业吗？这家企业的主要产品和项目有哪些？给出详细说明。"
+        question1 = f"{cmp}是一家企业吗？这家企业的主要产品和项目有哪些？用表格汇总相关信息。"
         intro = qa_agent(question1)
 
-        st.info("2. 绿色企业判断")
+        st.info("2. 绿色产品判断")
         with st.spinner("Retrieval & Matching"):
             green_matching = st.session_state.qa.run(
-                f"参考{intro}企业信息，查找相关的绿色标准，分析{cmp}是否满足这些标准。")
+                f"参考{intro}企业的产品信息，查找相关的绿色标准，分析{cmp}的产品是否满足这些标准。")
         with st.expander("√ Complete!"):
             st.success(green_matching)
 
         st.info("3. 绿色企业评价")
-        question1 = f"参考绿色企业的标准，{cmp}公司是否是一家绿色企业？如果是，给出该公司在符合绿色企业标准的相关信息。"
+        question1 = f"{cmp}公司是否是一家绿色企业？请对企业近期的绿色相关新闻内容进行汇总。"
         valuation = qa_agent(question1)
 
         st.info("4. 构建评分模型")
@@ -109,16 +109,16 @@ msgs = StreamlitChatMessageHistory()
 if "agent" not in st.session_state:
     create_db()
     st.session_state.agent = custom_react_agent(msgs)
-    st.session_state.qa = qa_retrieval(rsd=False, collection_name="test")
+    st.session_state.qa = qa_retrieval(rsd=False, collection_name="green")
 
 
-def update(tools):
-    
+def update():
+    cname = st.session_state.cname
     st.session_state.qa = qa_retrieval(
-        rsd=False, collection_name=tools[-1])
+        rsd=False, collection_name=cname)
     
     st.session_state.agent = custom_react_agent(
-        msgs, tools)
+        msgs, [cname])
 
 
 with st.sidebar.form('update'):
@@ -133,12 +133,11 @@ with st.sidebar.form('update'):
 
     collection_name = st.radio("Select Collection to Retrieve",
                                options=collections,
-                               index=0,
-                               horizontal=True
+                               index=collections.index("test"),
+                               horizontal=True,
+                               key="cname"
                                )
-    options.append(collection_name)
-    st.form_submit_button('Update Agent', on_click=update, use_container_width=True,
-                          args=[options])
+    st.form_submit_button('Update Agent', on_click=update, use_container_width=True)
 
 
 mts = ["Agent Chat", "Generate Research", "History"]

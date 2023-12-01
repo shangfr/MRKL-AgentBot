@@ -17,7 +17,7 @@ from langchain.llms import QianfanLLMEndpoint
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
-llm = QianfanLLMEndpoint()
+llm = QianfanLLMEndpoint(model="ERNIE-Bot",streaming=True)
 
 
 def parse_url(urls):
@@ -49,11 +49,14 @@ def doc_splits(file, chunk_size=1000, urls=[]):
         with open(temp_filepath, "wb") as f:
             f.write(file.getvalue())
         if file.name.endswith('.csv'):
+       
             from langchain.document_loaders.csv_loader import CSVLoader
             loader = CSVLoader(temp_filepath, encoding='utf-8')
             lst = loader.load()
-            for spl in splits:
+            for spl in lst:
                 spl.metadata['source'] = file.name
+    
+            
         else:
             loader = UnstructuredFileLoader(temp_filepath)
             docs = loader.load()
@@ -90,12 +93,11 @@ def vectordb(file=None, splits=[], urls=[], chunk_size=1000, collection_name="te
 def qa_retrieval(k=1, rsd=True, prompt_template="", db=None, collection_name="test"):
 
     if not prompt_template:
-        prompt_template = """将问题分解成若干个简单问题，参考以下内容然后逐个回答。确保答案正确，不要太啰嗦。
-        
-        {context}
-        
-        问题: {question}
-        """
+        prompt_template = """资料: 
+{context}
+
+问题: {question}
+"""
 
     PROMPT = PromptTemplate(
         template=prompt_template, input_variables=["context", "question"]
@@ -126,8 +128,9 @@ def summarize(docs):
 
     # Define prompt
     prompt_template = """现在你是一位资深投资人，参考以下内容，写一篇分析报告，要求包含以下内容。其中在企业绿色评价部分，你需要从可持续发展、成长性、收益性等方面切入。需要结合权威机构发布的数据。内容详实，有层次结构。
-    "内容：{text}"
-    报告:"""
+内容：{text}
+报告:
+"""
     prompt = PromptTemplate.from_template(prompt_template)
 
     llm_chain = LLMChain(llm=llm, prompt=prompt)
